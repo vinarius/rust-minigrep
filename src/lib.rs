@@ -1,9 +1,11 @@
 use std::error::Error;
 use std::fs;
+use std::env;
 
 pub struct Config {
     pub query: String,
     pub file_path: String,
+    pub ignore_case: bool,
 }
 
 impl Config {
@@ -15,15 +17,22 @@ impl Config {
         return Ok(Config {
             query: args[1].clone(),
             file_path: args[2].clone(),
+            ignore_case: env::var("IGNORE_CASE").is_ok()
         });
     }
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
-    let Config { query, file_path } = config;
+    let Config { query, file_path, ignore_case } = config;
     let contents = fs::read_to_string(file_path)?;
 
-    for line in search(&query, &contents) {
+    let results = if ignore_case {
+        search_case_insensitive(&query, &contents)
+    } else {
+        search(&query, &contents)
+    };
+
+    for line in results {
         println!("{line}");
     }
 
@@ -35,6 +44,19 @@ fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
 
     for line in contents.lines() {
         if line.contains(query) {
+            results.push(line);
+        }
+    }
+
+    results
+}
+
+pub fn search_case_insensitive<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
+    let query = query.to_lowercase();
+    let mut results = Vec::new();
+
+    for line in contents.lines() {
+        if line.to_lowercase().contains(&query) {
             results.push(line);
         }
     }
